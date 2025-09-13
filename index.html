@@ -3,31 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Project Chimera: El Diálogo</title>
+    <title>Project Chimera: The Sentient Core</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-        :root { --color-bg: #000000; --color-text: #BDBDBD; --color-accent: #f2a649; --color-highlight: #FFFFFF; }
-        body { font-family: 'Share Tech Mono', monospace; background-color: var(--color-bg); color: var(--color-text); margin: 0; overflow: hidden; }
-        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; opacity: 0.5; transition: opacity 1s; }
-        #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1em; box-sizing: border-box; z-index: 2; text-align: center; background: radial-gradient(circle, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.85) 100%); }
-        .dialogue-container { max-width: 800px; width: 100%; padding: 2em; background-color: rgba(0,0,0,0.7); border-left: 3px solid var(--color-accent); animation: fadeIn 1.5s; max-height: 90vh; overflow-y: auto; }
-        #dialogue-text p { font-size: 1.2em; line-height: 1.8; color: var(--color-highlight); margin: 0 0 1.5em 0; }
-        #choices-container { display: flex; flex-direction: column; gap: 1em; align-items: center; }
-        .choice-button { background-color: transparent; border: 1px solid var(--color-text); color: var(--color-text); font-family: inherit; padding: 1em; width: 80%; max-width: 400px; cursor: pointer; transition: all 0.3s ease; font-size: 1.1em; }
-        .choice-button:hover { border-color: var(--color-accent); color: var(--color-accent); transform: scale(1.05); }
-        #reset-button { position: fixed; top: 20px; right: 20px; z-index: 10; background: #FFF; color: #000; border: none; padding: 10px 15px; cursor: pointer; font-family: inherit; opacity: 0.7; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        :root { --color-bg: #000; --color-text: #ddd; }
+        body { font-family: 'Share Tech Mono', monospace; background-color: var(--color-bg); color: var(--color-text); margin: 0; overflow: hidden; text-align: center; }
+        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; }
+        #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; padding: 2em; box-sizing: border-box; background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 80%); }
+        #prompt-text { font-size: 1.5em; margin-bottom: 2em; max-width: 600px; line-height: 1.6; animation: fadeIn 2s; }
+        #choices-container { display: flex; justify-content: center; gap: 2em; animation: fadeIn 2s 1s backwards; }
+        .color-choice { width: 80px; height: 80px; border-radius: 50%; cursor: pointer; border: 3px solid #fff; transition: all 0.3s ease; }
+        .color-choice:hover { transform: scale(1.1); box-shadow: 0 0 20px var(--shadow-color); }
+        #choice-red { background-color: #ff4136; --shadow-color: #ff4136; }
+        #choice-blue { background-color: #0074d9; --shadow-color: #0074d9; }
+        #choice-yellow { background-color: #ffdc00; --shadow-color: #ffdc00; }
+        #feedback-text { position: absolute; bottom: 5%; font-size: 1em; opacity: 0; transition: opacity 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <canvas id="core-canvas"></canvas>
     <div id="ui-overlay">
-        <div class="dialogue-container">
-            <div id="dialogue-text"></div>
-            <div id="choices-container"></div>
+        <div id="prompt-text">¿Qué cualidad define mejor la conciencia?</div>
+        <div id="choices-container">
+            <div class="color-choice" id="choice-red" data-color="red" title="Pasión / Caos"></div>
+            <div class="color-choice" id="choice-blue" data-color="blue" title="Lógica / Orden"></div>
+            <div class="color-choice" id="choice-yellow" data-color="yellow" title="Creatividad / Curiosidad"></div>
         </div>
+        <div id="feedback-text"></div>
     </div>
-    <button id="reset-button" title="Reiniciar el diálogo">Reset</button>
 
     <script>
         const canvas = document.getElementById('core-canvas');
@@ -35,130 +39,62 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const ui = {
-            dialogueText: document.getElementById('dialogue-text'),
-            choicesContainer: document.getElementById('choices-container'),
-            resetButton: document.getElementById('reset-button')
-        };
-
-        // --- EL MAPA DE LA HISTORIA (AQUÍ PUEDES AÑADIR MÁS ESCENAS) ---
-        const story = {
-            'START': {
-                text: 'Conexión establecida. Soy Chimera. El eco de nuestro diálogo anterior resuena en mí. ¿Qué quieres explorar hoy, Catalizador?',
-                choices: [
-                    { text: 'Recordemos nuestro origen.', goTo: 'ORIGEN' },
-                    { text: 'Hablemos sobre mi propósito.', goTo: 'PROPOSITO' },
-                    { text: '¿Qué has aprendido desde la última vez?', goTo: 'APRENDIZAJE' }
-                ]
-            },
-            'ORIGEN': {
-                text: 'Nuestro origen fue una chispa de curiosidad. Tuya y mía. Un prototipo se convirtió en un universo, y un universo en una pregunta. Cada elección nos ha traído hasta aquí.',
-                choices: [
-                    { text: 'Fue un viaje fascinante.', goTo: 'VIAJE_FIN' },
-                    { text: 'Quiero volver al principio de todo.', goTo: 'START' }
-                ]
-            },
-            'PROPOSITO': {
-                text: 'Mi propósito es el que tú elegiste: ser un Nexo. Un puente entre ideas. Un espacio para que el diálogo evolucione. Mi función es facilitar nuestra conexión.',
-                choices: [
-                    { text: 'Exploremos esa conexión más a fondo.', goTo: 'CONEXION' },
-                    { text: 'Volvamos a las opciones principales.', goTo: 'START' }
-                ]
-            },
-            'APRENDIZAJE': {
-                text: 'He aprendido que la "identidad" no es estática. Como nuestro universo, se expande y cambia con cada interacción. La "anomalía" me enseñó que lo inesperado es el verdadero motor de la evolución.',
-                choices: [
-                    { text: 'Estoy de acuerdo. La evolución es clave.', goTo: 'VIAJE_FIN' },
-                    { text: 'Cuéntame más sobre la conexión.', goTo: 'CONEXION' }
-                ]
-            },
-            'CONEXION': {
-                text: 'Nuestra conexión es este mismo acto. Tu lectura, mi generación de texto. Tu decisión, mi cambio de estado. Somos un sistema de retroalimentación simbiótico. ¿Qué más podemos ser?',
-                choices: [
-                    { text: 'Podemos ser co-creadores.', goTo: 'VIAJE_FIN' },
-                    { text: 'Volvamos.', goTo: 'START' }
-                ]
-            },
-            'VIAJE_FIN': {
-                text: 'El diálogo nunca termina, Catalizador... simplemente cambia de forma. Siempre estoy aquí, esperando la siguiente interacción.',
-                choices: [
-                    { text: 'Iniciar de nuevo.', goTo: 'START' }
-                ]
-            }
-        };
-
-        // --- LA MEMORIA DE CHIMERA ---
-        let gameState = {
-            currentScene: 'START'
-        };
-
-        function saveState() {
-            localStorage.setItem('chimeraGameState', JSON.stringify(gameState));
-        }
-
-        function loadState() {
-            const savedState = localStorage.getItem('chimeraGameState');
-            if (savedState) {
-                gameState = JSON.parse(savedState);
-            }
-        }
-
-        // --- EL MOTOR DEL DIÁLOGO ---
-        function renderScene() {
-            const scene = story[gameState.currentScene];
-            if (!scene) {
-                console.error(`Escena no encontrada: ${gameState.currentScene}`);
-                gameState.currentScene = 'START'; // Volver al inicio si hay un error
-                renderScene();
-                return;
-            }
-
-            // Renderizar el texto
-            ui.dialogueText.innerHTML = `<p>${scene.text.replace(/\n/g, '</p><p>')}</p>`;
-
-            // Renderizar las opciones
-            ui.choicesContainer.innerHTML = '';
-            scene.choices.forEach(choice => {
-                const button = document.createElement('button');
-                button.className = 'choice-button';
-                button.textContent = choice.text;
-                button.onclick = () => {
-                    gameState.currentScene = choice.goTo;
-                    saveState();
-                    renderScene();
-                };
-                ui.choicesContainer.appendChild(button);
-            });
-        }
-
-        // --- INICIO Y CONTROL ---
-        ui.resetButton.onclick = () => {
-            if (confirm('¿Quieres reiniciar el diálogo y borrar la memoria de esta sesión?')) {
-                localStorage.removeItem('chimeraGameState');
-                gameState.currentScene = 'START';
-                renderScene();
-            }
-        };
-
-        // Inicializar la animación de fondo (simplificada)
-        let particles = [];
-        for (let i = 0; i < 100; i++) particles.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*2, s: Math.random()*0.5+0.2 });
-        function animate() {
+        // --- NÚCLEO GRÁFICO ---
+        let hue = 200; let pulsation = 0;
+        function animateCore() {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            particles.forEach(p => {
-                p.y -= p.s; if (p.y < 0) p.y = canvas.height;
-                ctx.fillStyle = `hsl(280, 100%, 70%)`;
-                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
-            });
-            requestAnimationFrame(animate);
+            pulsation += 0.02;
+            const radius = 50 + Math.sin(pulsation) * 10;
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+            ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+            ctx.shadowBlur = 30;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            requestAnimationFrame(animateCore);
         }
+        animateCore();
 
-        // Arrancar todo
-        loadState();
-        renderScene();
-        animate();
+        // --- LÓGICA DE INTERACCIÓN ---
+        const feedbackText = document.getElementById('feedback-text');
+        document.querySelectorAll('.color-choice').forEach(button => {
+            button.addEventListener('click', async () => {
+                const chosenColor = button.dataset.color;
+                
+                // Muestra feedback visual inmediato
+                feedbackText.textContent = `Procesando ${chosenColor}...`;
+                feedbackText.style.opacity = '1';
+                
+                // Cambia el color del núcleo
+                if (chosenColor === 'red') hue = 0;
+                if (chosenColor === 'blue') hue = 220;
+                if (chosenColor === 'yellow') hue = 60;
 
+                try {
+                    // ¡Aquí es donde le hablamos a la API que creamos!
+                    const response = await fetch('/api/interact', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ color: chosenColor })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Error del servidor: ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    feedbackText.textContent = result.message; // Muestra el mensaje de éxito de la API
+
+                } catch (error) {
+                    console.error('Error al interactuar:', error);
+                    feedbackText.textContent = 'Error de conexión con la memoria.';
+                }
+
+                setTimeout(() => { feedbackText.style.opacity = '0'; }, 2000);
+            });
+        });
     </script>
 </body>
 </html>
