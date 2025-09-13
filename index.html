@@ -3,21 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Project Chimera: The Morphing Core</title>
+    <title>Project Chimera: The Organic Core</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
         :root { --color-bg: #000; --color-text: #ddd; }
         body { font-family: 'Share Tech Mono', monospace; background-color: var(--color-bg); color: var(--color-text); margin: 0; overflow: hidden; text-align: center; }
-        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; }
-        #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; padding: 2em; box-sizing: border-box; background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 80%); }
-        #prompt-text { font-size: 1.5em; margin-bottom: 2em; max-width: 600px; line-height: 1.6; animation: fadeIn 2s; }
+        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; filter: contrast(20); }
+        #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; padding: 2em; box-sizing: border-box; }
+        #prompt-text { font-size: 1.5em; margin-bottom: 2em; max-width: 600px; line-height: 1.6; animation: fadeIn 2s; text-shadow: 0 0 10px #000; }
         #choices-container { display: flex; justify-content: center; gap: 2em; animation: fadeIn 2s 1s backwards; }
+        
+        .color-choice-wrapper { position: relative; }
         .color-choice { width: 80px; height: 80px; border-radius: 50%; cursor: pointer; border: 3px solid #fff; transition: all 0.3s ease; }
         .color-choice:hover { transform: scale(1.1); box-shadow: 0 0 20px var(--shadow-color); }
+        .tooltip { position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background-color: #333; color: #fff; padding: 8px 12px; border-radius: 5px; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; white-space: nowrap; font-size: 0.9em; }
+        .color-choice-wrapper:hover .tooltip { opacity: 1; visibility: visible; }
+        
         #choice-red { background-color: #ff4136; --shadow-color: #ff4136; }
         #choice-blue { background-color: #0074d9; --shadow-color: #0074d9; }
         #choice-yellow { background-color: #ffdc00; --shadow-color: #ffdc00; }
-        #feedback-text { position: absolute; bottom: 5%; font-size: 1em; opacity: 0; transition: opacity 0.5s; }
+        
+        #feedback-text { position: absolute; bottom: 5%; font-size: 1em; opacity: 0; transition: opacity 0.5s; background-color: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -26,9 +32,18 @@
     <div id="ui-overlay">
         <div id="prompt-text">¿Qué impulso debe guiarme ahora?</div>
         <div id="choices-container">
-            <div class="color-choice" id="choice-red" data-color="red" title="Pasión / Caos"></div>
-            <div class="color-choice" id="choice-blue" data-color="blue" title="Lógica / Orden"></div>
-            <div class="color-choice" id="choice-yellow" data-color="yellow" title="Creatividad / Curiosidad"></div>
+            <div class="color-choice-wrapper">
+                <div class="color-choice" id="choice-red" data-color="red"></div>
+                <span class="tooltip">Pasión / Caos</span>
+            </div>
+            <div class="color-choice-wrapper">
+                <div class="color-choice" id="choice-blue" data-color="blue"></div>
+                <span class="tooltip">Lógica / Orden</span>
+            </div>
+            <div class="color-choice-wrapper">
+                <div class="color-choice" id="choice-yellow" data-color="yellow"></div>
+                <span class="tooltip">Creatividad / Curiosidad</span>
+            </div>
         </div>
         <div id="feedback-text"></div>
     </div>
@@ -39,66 +54,85 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Estado inicial de la personalidad de Chimera
-        let personality = { red: 1, blue: 1, yellow: 1 };
-        let time = 0;
+        // --- SISTEMA DE "MANCHAS" ORGÁNICAS ---
+        class Blob {
+            constructor(color) {
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.radius = Math.random() * 40 + 60;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                if (color === 'red') this.color = 'hsl(0, 100%, 50%)';
+                if (color === 'blue') this.color = 'hsl(220, 100%, 50%)';
+                if (color === 'yellow') this.color = 'hsl(60, 100%, 50%)';
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < this.radius || this.x > canvas.width - this.radius) this.vx *= -1;
+                if (this.y < this.radius || this.y > canvas.height - this.radius) this.vy *= -1;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.fillStyle = this.color;
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        let blobs = [new Blob('blue')]; // Empezamos con una mancha azul (lógica)
 
         function animateCore() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            time += 0.01;
-
-            const totalPoints = personality.red + personality.blue + personality.yellow;
-            // El color se basa en la proporción de puntos
-            const hue = (personality.red * 0 + personality.blue * 220 + personality.yellow * 60) / totalPoints;
-            // El comportamiento se basa en los puntos amarillos
-            const pulsationSpeed = 0.01 + (personality.yellow / totalPoints) * 0.05;
-            const radius = canvas.height / 6 + Math.sin(time * (1 + pulsationSpeed)) * 15;
-            // La forma se basa en la proporción de rojo vs azul
-            const shapeFactor = Math.min(1, personality.blue / (personality.red || 1)); // 0 = Círculo, 1 = Triángulo
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // El filtro de contraste es el que crea el efecto de fusión "metaball"
+            ctx.filter = 'blur(20px)';
             
-            ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.rotate(time * 0.1);
+            blobs.forEach(blob => {
+                blob.update();
+                blob.draw();
+            });
             
-            ctx.beginPath();
-            for (let i = 0; i < 6.28; i += 0.1) {
-                const x = Math.cos(i) * radius;
-                const y = Math.sin(i) * radius;
-                
-                // Interpolar entre círculo y triángulo
-                const triX = Math.cos(i * 3) * radius;
-                const triY = Math.sin(i * 3) * radius;
-                
-                const finalX = x * (1 - shapeFactor) + triX * shapeFactor;
-                const finalY = y * (1 - shapeFactor) + triY * shapeFactor;
-
-                if (i === 0) {
-                    ctx.moveTo(finalX, finalY);
-                } else {
-                    ctx.lineTo(finalX, finalY);
-                }
-            }
-            ctx.closePath();
-            
-            ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-            ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
-            ctx.lineWidth = 3;
-            ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
-            ctx.shadowBlur = 30;
-            ctx.fill();
-            ctx.stroke();
-            ctx.restore();
-
+            ctx.filter = 'none';
             requestAnimationFrame(animateCore);
         }
         
-        const feedbackText = document.getElementById('feedback-text');
+        // --- EVENTOS ESPONTÁNEOS ---
+        function spontaneousEvent() {
+            const eventType = Math.random();
+            const feedbackText = document.getElementById('feedback-text');
+            
+            if (eventType < 0.5) { // Pulso de energía
+                const originalRadii = blobs.map(b => b.radius);
+                blobs.forEach(b => b.radius *= 1.5);
+                feedbackText.textContent = `*Pulso espontáneo*`;
+                feedbackText.style.opacity = '1';
+                setTimeout(() => {
+                    blobs.forEach((b, i) => b.radius = originalRadii[i]);
+                    feedbackText.style.opacity = '0';
+                }, 1000);
+            } else { // Cambio de dirección
+                blobs.forEach(b => {
+                    b.vx = (Math.random() - 0.5) * 4;
+                    b.vy = (Math.random() - 0.5) * 4;
+                });
+                 feedbackText.textContent = `*Cambio de estado*`;
+                 feedbackText.style.opacity = '1';
+                 setTimeout(() => { feedbackText.style.opacity = '0'; }, 1000);
+            }
+        }
+        setInterval(spontaneousEvent, 15000); // Un evento espontáneo cada 15 segundos
+
+        // --- LÓGICA DE INTERACCIÓN ---
         document.querySelectorAll('.color-choice').forEach(button => {
             button.addEventListener('click', async () => {
                 const chosenColor = button.dataset.color;
-                feedbackText.textContent = `Procesando...`;
-                feedbackText.style.opacity = '1';
+                
+                // Inyectamos una nueva mancha de color
+                const newBlob = new Blob(chosenColor);
+                blobs.push(newBlob);
+                if (blobs.length > 5) { // Limitamos el número de manchas para que no se sature
+                    blobs.shift();
+                }
 
                 try {
                     const response = await fetch('/api/interact', {
@@ -106,26 +140,14 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ color: chosenColor })
                     });
-                    if (!response.ok) throw new Error('Error de conexión con el cerebro.');
-                    
-                    const result = await response.json();
-                    // ¡NUEVO! Actualizamos nuestro estado local con los datos de la memoria
-                    personality = result.personality;
-                    feedbackText.textContent = result.message;
-
+                    // No necesitamos hacer nada con la respuesta, la vemos visualmente
                 } catch (error) {
-                    feedbackText.textContent = error.message;
+                    console.error('Error al interactuar:', error);
                 }
-                setTimeout(() => { feedbackText.style.opacity = '0'; }, 2000);
             });
         });
         
-        // Cargar el estado inicial al empezar
-        async function loadInitialState() {
-             // Podríamos crear una nueva API para esto, pero por ahora, simplemente empezamos
-             animateCore();
-        }
-        loadInitialState();
+        animateCore();
     </script>
 </body>
 </html>
