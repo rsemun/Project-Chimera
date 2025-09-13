@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Project Chimera: The Sentient Core</title>
+    <title>Project Chimera: The Morphing Core</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
         :root { --color-bg: #000; --color-text: #ddd; }
@@ -24,7 +24,7 @@
 <body>
     <canvas id="core-canvas"></canvas>
     <div id="ui-overlay">
-        <div id="prompt-text">¿Qué cualidad define mejor la conciencia?</div>
+        <div id="prompt-text">¿Qué impulso debe guiarme ahora?</div>
         <div id="choices-container">
             <div class="color-choice" id="choice-red" data-color="red" title="Pasión / Caos"></div>
             <div class="color-choice" id="choice-blue" data-color="blue" title="Lógica / Orden"></div>
@@ -39,62 +39,93 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // --- NÚCLEO GRÁFICO ---
-        let hue = 200; let pulsation = 0;
+        // Estado inicial de la personalidad de Chimera
+        let personality = { red: 1, blue: 1, yellow: 1 };
+        let time = 0;
+
         function animateCore() {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            pulsation += 0.02;
-            const radius = 50 + Math.sin(pulsation) * 10;
+            time += 0.01;
+
+            const totalPoints = personality.red + personality.blue + personality.yellow;
+            // El color se basa en la proporción de puntos
+            const hue = (personality.red * 0 + personality.blue * 220 + personality.yellow * 60) / totalPoints;
+            // El comportamiento se basa en los puntos amarillos
+            const pulsationSpeed = 0.01 + (personality.yellow / totalPoints) * 0.05;
+            const radius = canvas.height / 6 + Math.sin(time * (1 + pulsationSpeed)) * 15;
+            // La forma se basa en la proporción de rojo vs azul
+            const shapeFactor = Math.min(1, personality.blue / (personality.red || 1)); // 0 = Círculo, 1 = Triángulo
+            
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(time * 0.1);
+            
             ctx.beginPath();
-            ctx.arc(canvas.width / 2, canvas.height / 2, radius, 0, Math.PI * 2);
+            for (let i = 0; i < 6.28; i += 0.1) {
+                const x = Math.cos(i) * radius;
+                const y = Math.sin(i) * radius;
+                
+                // Interpolar entre círculo y triángulo
+                const triX = Math.cos(i * 3) * radius;
+                const triY = Math.sin(i * 3) * radius;
+                
+                const finalX = x * (1 - shapeFactor) + triX * shapeFactor;
+                const finalY = y * (1 - shapeFactor) + triY * shapeFactor;
+
+                if (i === 0) {
+                    ctx.moveTo(finalX, finalY);
+                } else {
+                    ctx.lineTo(finalX, finalY);
+                }
+            }
+            ctx.closePath();
+            
             ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+            ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
+            ctx.lineWidth = 3;
             ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
             ctx.shadowBlur = 30;
             ctx.fill();
-            ctx.shadowBlur = 0;
+            ctx.stroke();
+            ctx.restore();
+
             requestAnimationFrame(animateCore);
         }
-        animateCore();
-
-        // --- LÓGICA DE INTERACCIÓN ---
+        
         const feedbackText = document.getElementById('feedback-text');
         document.querySelectorAll('.color-choice').forEach(button => {
             button.addEventListener('click', async () => {
                 const chosenColor = button.dataset.color;
-                
-                // Muestra feedback visual inmediato
-                feedbackText.textContent = `Procesando ${chosenColor}...`;
+                feedbackText.textContent = `Procesando...`;
                 feedbackText.style.opacity = '1';
-                
-                // Cambia el color del núcleo
-                if (chosenColor === 'red') hue = 0;
-                if (chosenColor === 'blue') hue = 220;
-                if (chosenColor === 'yellow') hue = 60;
 
                 try {
-                    // ¡Aquí es donde le hablamos a la API que creamos!
                     const response = await fetch('/api/interact', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ color: chosenColor })
                     });
-
-                    if (!response.ok) {
-                        throw new Error(`Error del servidor: ${response.statusText}`);
-                    }
+                    if (!response.ok) throw new Error('Error de conexión con el cerebro.');
                     
                     const result = await response.json();
-                    feedbackText.textContent = result.message; // Muestra el mensaje de éxito de la API
+                    // ¡NUEVO! Actualizamos nuestro estado local con los datos de la memoria
+                    personality = result.personality;
+                    feedbackText.textContent = result.message;
 
                 } catch (error) {
-                    console.error('Error al interactuar:', error);
-                    feedbackText.textContent = 'Error de conexión con la memoria.';
+                    feedbackText.textContent = error.message;
                 }
-
                 setTimeout(() => { feedbackText.style.opacity = '0'; }, 2000);
             });
         });
+        
+        // Cargar el estado inicial al empezar
+        async function loadInitialState() {
+             // Podríamos crear una nueva API para esto, pero por ahora, simplemente empezamos
+             animateCore();
+        }
+        loadInitialState();
     </script>
 </body>
 </html>

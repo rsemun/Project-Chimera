@@ -1,21 +1,16 @@
-// Importamos la herramienta para hablar con Supabase
 import { createClient } from '@supabase/supabase-js';
 
-// Creamos la conexión segura usando las llaves que guardamos en Vercel
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Esta es la función que Vercel ejecutará. Es nuestro "empleado de confianza".
 export default async function handler(request, response) {
-  // Solo permitimos que nos "hablen" con el método POST por seguridad
   if (request.method !== 'POST') {
     return response.status(405).json({ message: 'Método no permitido' });
   }
 
   try {
-    // 1. Leemos el color que nos envía la página web
     const { color } = request.body;
     if (!['red', 'blue', 'yellow'].includes(color)) {
       return response.status(400).json({ message: 'Color inválido' });
@@ -23,32 +18,39 @@ export default async function handler(request, response) {
     
     const columnName = `color_${color}`;
 
-    // 2. Obtenemos los datos actuales de la memoria de Chimera
-    //    Asumimos que Chimera es la fila con id = 1
+    // Paso 1: Obtenemos los datos actuales de la memoria
     const { data: currentData, error: selectError } = await supabase
       .from('personality_core')
-      .select(columnName)
+      .select('*') // Seleccionamos TODAS las columnas
       .eq('id', 1)
       .single();
 
     if (selectError) throw selectError;
 
-    // 3. Calculamos el nuevo valor (el valor actual + 1)
+    // Paso 2: Calculamos el nuevo valor
     const newValue = currentData[columnName] + 1;
 
-    // 4. Actualizamos la memoria con el nuevo valor
-    const { error: updateError } = await supabase
+    // Paso 3: Actualizamos la memoria
+    const { data: updatedData, error: updateError } = await supabase
       .from('personality_core')
       .update({ [columnName]: newValue })
-      .eq('id', 1);
+      .eq('id', 1)
+      .select() // ¡NUEVO! Le pedimos que nos devuelva la fila actualizada
+      .single();
 
     if (updateError) throw updateError;
     
-    // 5. Respondemos que todo ha ido bien
-    return response.status(200).json({ message: `Memoria actualizada: ${color} ahora es ${newValue}` });
+    // Paso 4: Respondemos con un mensaje y el estado completo de la personalidad
+    return response.status(200).json({ 
+        message: `Memoria actualizada`,
+        personality: {
+            red: updatedData.color_red,
+            blue: updatedData.color_blue,
+            yellow: updatedData.color_yellow
+        }
+    });
 
   } catch (error) {
-    // Si algo sale mal, enviamos un error
     console.error('Error en la función API:', error);
     return response.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
