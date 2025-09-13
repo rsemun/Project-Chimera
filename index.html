@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Project Chimera: The Stardust Nebula</title>
+    <title>Project Chimera: The Living Cosmos</title>
     <style>
         /* El CSS es idéntico al anterior */
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
         :root { --color-bg: #000; --color-text: #ddd; }
         body { font-family: 'Share Tech Mono', monospace; background-color: var(--color-bg); color: var(--color-text); margin: 0; overflow: hidden; text-align: center; }
-        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; /* El filtro ya no es necesario aquí */ }
+        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; background: #000; }
         #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; padding: 1em; box-sizing: border-box; }
         #prompt-text { font-size: 1.5em; margin-bottom: 2em; max-width: 600px; line-height: 1.6; animation: fadeIn 2s; text-shadow: 0 0 10px #000; }
         #choices-container { display: flex; justify-content: center; gap: 1em; flex-wrap: wrap; animation: fadeIn 2s 1s backwards; }
@@ -30,7 +30,7 @@
 <body>
     <canvas id="core-canvas"></canvas>
     <div id="ui-overlay">
-        <div id="prompt-text">¿Qué energía infundes en la Nebulosa?</div>
+        <div id="prompt-text">¿Qué energía infundes en el Cosmos?</div>
         <div id="choices-container">
             <div class="color-choice-wrapper">
                 <div class="color-choice" id="choice-red" data-color="red"></div>
@@ -57,20 +57,16 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Partícula individual de "polvo de estrellas"
         class Particle {
             constructor(x, y, r, g, b) {
                 this.x = x; this.y = y;
                 this.r = r; this.g = g; this.b = b;
-                this.radius = Math.random() * 2 + 1;
+                this.radius = Math.random() * 2.5 + 1; // Puntos más visibles
                 this.vx = (Math.random() - 0.5) * 0.5;
                 this.vy = (Math.random() - 0.5) * 0.5;
                 this.life = 1;
             }
-            update() {
-                this.x += this.vx; this.y += this.vy;
-                this.life -= 0.005; // Las partículas se desvanecen
-            }
+            update() { this.x += this.vx; this.y += this.vy; this.life -= 0.002; } // Viven más
             draw() {
                 ctx.beginPath();
                 ctx.fillStyle = `rgba(${this.r}, ${this.g}, ${this.b}, ${this.life})`;
@@ -79,52 +75,53 @@
             }
         }
         
-        // La mancha principal, ahora una Nebulosa
         class Nebula {
             constructor(x, y, radius, r, g, b, type) {
                 this.x = x; this.y = y; this.radius = radius;
                 this.r = r; this.g = g; this.b = b;
                 this.type = type;
-                this.vx = (Math.random() - 0.5) * (this.type === 'impulse' ? 2 : 1);
-                this.vy = (Math.random() - 0.5) * (this.type === 'impulse' ? 2 : 1);
-                
-                // Cada nebulosa contiene su propio polvo de estrellas
+                this.vx = (Math.random() - 0.5) * (this.type === 'impulse' ? 1.5 : 0.8);
+                this.vy = (Math.random() - 0.5) * (this.type === 'impulse' ? 1.5 : 0.8);
                 this.particles = [];
-                for (let i = 0; i < 150; i++) {
+                for (let i = 0; i < 300; i++) { // Más partículas para una textura más densa
                     const angle = Math.random() * Math.PI * 2;
                     const pRadius = Math.random() * this.radius;
                     const pX = this.x + Math.cos(angle) * pRadius;
                     const pY = this.y + Math.sin(angle) * pRadius;
-                    // Las partículas heredan el color base con una pequeña variación
                     this.particles.push(new Particle(pX, pY, 
-                        this.r + Math.random()*40-20, 
-                        this.g + Math.random()*40-20, 
-                        this.b + Math.random()*40-20
+                        this.r + Math.random()*50-25, 
+                        this.g + Math.random()*50-25, 
+                        this.b + Math.random()*50-25
                     ));
                 }
             }
             update() {
                 this.x += this.vx; this.y += this.vy;
-                if (this.x < this.radius || this.x > canvas.width - this.radius) this.vx *= -1;
-                if (this.y < this.radius || this.y > canvas.height - this.radius) this.vy *= -1;
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
                 
-                // Mayor tiempo de vida
-                this.radius -= 0.02;
+                // Decaimiento mucho más lento para una vida mayor
+                this.radius -= 0.008;
 
-                // Actualizar partículas internas
                 this.particles.forEach(p => {
                     p.update();
-                    // Mantener las partículas dentro de la nebulosa
                     const dx = p.x - this.x; const dy = p.y - this.y;
                     const dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist > this.radius) {
-                        p.x = this.x - dx / dist * this.radius;
-                        p.y = this.y - dy / dist * this.radius;
-                    }
+                    if (dist > this.radius) { p.life = 0; } // Las partículas mueren si escapan
                 });
                 this.particles = this.particles.filter(p => p.life > 0);
             }
             draw() {
+                 // 1. Dibuja la atmósfera exterior brillante
+                const gradient = ctx.createRadialGradient(this.x, this.y, this.radius * 0.2, this.x, this.y, this.radius);
+                gradient.addColorStop(0, `rgba(${this.r}, ${this.g}, ${this.b}, 0.2)`);
+                gradient.addColorStop(1, `rgba(${this.r}, ${this.g}, ${this.b}, 0)`);
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 2. Dibuja las partículas de polvo de estrellas
                 this.particles.forEach(p => p.draw());
             }
         }
@@ -138,18 +135,18 @@
                     const dx = n2.x - n1.x; const dy = n2.y - n1.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
-                    if (distance < n1.radius/1.5 + n2.radius/1.5) {
-                        // Crecimiento Armónico
-                        n1.radius += n2.radius * 0.3; // Más suave
-                        // Mezcla de colores
-                        n1.r = Math.floor((n1.r * n1.radius + n2.r * n2.radius) / (n1.radius + n2.radius));
-                        n1.g = Math.floor((n1.g * n1.radius + n2.g * n2.radius) / (n1.radius + n2.radius));
-                        n1.b = Math.floor((n1.b * n1.radius + n2.b * n2.radius) / (n1.radius + n2.radius));
+                    if (distance < n1.radius/2 + n2.radius/2) {
+                        const larger = n1.radius > n2.radius ? n1 : n2;
+                        const smaller = n1.radius > n2.radius ? n2 : n1;
                         
-                        // Las partículas de la nebulosa pequeña migran a la grande
-                        n1.particles.push(...n2.particles);
+                        larger.radius += smaller.radius * 0.15; // Crecimiento más armónico
+                        larger.r = Math.floor((larger.r * larger.radius + smaller.r * smaller.radius) / (larger.radius + smaller.radius));
+                        larger.g = Math.floor((larger.g * larger.radius + smaller.g * smaller.radius) / (larger.radius + smaller.radius));
+                        larger.b = Math.floor((larger.b * larger.radius + smaller.b * smaller.radius) / (larger.radius + smaller.radius));
                         
-                        nebulas.splice(j, 1);
+                        larger.particles.push(...smaller.particles);
+                        
+                        nebulas.splice(nebulas.indexOf(smaller), 1);
                         return;
                     }
                 }
@@ -157,12 +154,15 @@
         }
 
         function animate() {
-            ctx.fillStyle = 'rgba(0,0,0,0.2)'; // Dejar un rastro más sutil
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.globalCompositeOperation = 'lighter'; // Esto hace que los colores se sumen y brillen más al cruzarse
             
             for (let i = nebulas.length - 1; i >= 0; i--) {
                 nebulas[i].update();
-                if (nebulas[i].radius < 10 || nebulas[i].particles.length === 0) {
+                if (nebulas[i].radius < 20 || nebulas[i].particles.length < 10) {
                     nebulas.splice(i, 1);
                 } else {
                     nebulas[i].draw();
@@ -173,16 +173,16 @@
             requestAnimationFrame(animate);
         }
         
-        // --- LÓGICA DE INTERACCIÓN ---
         document.querySelectorAll('.color-choice').forEach(button => {
             button.addEventListener('click', () => {
                 const colorType = button.dataset.color;
                 let r=0, g=0, b=0, type='';
                 if (colorType === 'red') { r=255; g=50; b=50; type='impulse'; }
-                if (colorType === 'blue') { r=50; g=50; b=255; type='reason'; }
+                if (colorType === 'blue') { r=50; g=100; b=255; type='reason'; }
                 if (colorType === 'yellow') { r=255; g=255; b=50; type='creation'; }
                 
-                const newNebula = new Nebula(Math.random()*canvas.width, Math.random()*canvas.height, 80, r,g,b, type);
+                // Nacen más grandes
+                const newNebula = new Nebula(Math.random()*canvas.width, Math.random()*canvas.height, 120, r,g,b, type);
                 nebulas.push(newNebula);
             });
         });
@@ -191,7 +191,6 @@
             if (nebulas.length > 0) {
                 nebulas.sort((a, b) => a.radius - b.radius);
                 nebulas.shift();
-
                 const feedback = document.getElementById('feedback-text');
                 feedback.textContent = '*Absorción*';
                 feedback.style.opacity = '1';
