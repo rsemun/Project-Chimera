@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Project Chimera: The Sentient Nebula</title>
+    <title>Project Chimera: The Stardust Nebula</title>
     <style>
+        /* El CSS es idéntico al anterior */
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
         :root { --color-bg: #000; --color-text: #ddd; }
         body { font-family: 'Share Tech Mono', monospace; background-color: var(--color-bg); color: var(--color-text); margin: 0; overflow: hidden; text-align: center; }
-        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; filter: contrast(30) brightness(1.2); background: #000; }
+        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; /* El filtro ya no es necesario aquí */ }
         #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; padding: 1em; box-sizing: border-box; }
         #prompt-text { font-size: 1.5em; margin-bottom: 2em; max-width: 600px; line-height: 1.6; animation: fadeIn 2s; text-shadow: 0 0 10px #000; }
         #choices-container { display: flex; justify-content: center; gap: 1em; flex-wrap: wrap; animation: fadeIn 2s 1s backwards; }
@@ -56,61 +57,99 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        class Blob {
+        // Partícula individual de "polvo de estrellas"
+        class Particle {
+            constructor(x, y, r, g, b) {
+                this.x = x; this.y = y;
+                this.r = r; this.g = g; this.b = b;
+                this.radius = Math.random() * 2 + 1;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.life = 1;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.life -= 0.005; // Las partículas se desvanecen
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.fillStyle = `rgba(${this.r}, ${this.g}, ${this.b}, ${this.life})`;
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // La mancha principal, ahora una Nebulosa
+        class Nebula {
             constructor(x, y, radius, r, g, b, type) {
                 this.x = x; this.y = y; this.radius = radius;
                 this.r = r; this.g = g; this.b = b;
                 this.type = type;
-                this.vx = (Math.random() - 0.5) * (this.type === 'impulse' ? 3 : 1.5);
-                this.vy = (Math.random() - 0.5) * (this.type === 'impulse' ? 3 : 1.5);
-                // Animación individual
-                this.time = Math.random() * 100;
-                this.pulsation = Math.random() * 0.02 + 0.01;
+                this.vx = (Math.random() - 0.5) * (this.type === 'impulse' ? 2 : 1);
+                this.vy = (Math.random() - 0.5) * (this.type === 'impulse' ? 2 : 1);
+                
+                // Cada nebulosa contiene su propio polvo de estrellas
+                this.particles = [];
+                for (let i = 0; i < 150; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const pRadius = Math.random() * this.radius;
+                    const pX = this.x + Math.cos(angle) * pRadius;
+                    const pY = this.y + Math.sin(angle) * pRadius;
+                    // Las partículas heredan el color base con una pequeña variación
+                    this.particles.push(new Particle(pX, pY, 
+                        this.r + Math.random()*40-20, 
+                        this.g + Math.random()*40-20, 
+                        this.b + Math.random()*40-20
+                    ));
+                }
             }
             update() {
-                // Movimiento
                 this.x += this.vx; this.y += this.vy;
                 if (this.x < this.radius || this.x > canvas.width - this.radius) this.vx *= -1;
                 if (this.y < this.radius || this.y > canvas.height - this.radius) this.vy *= -1;
-                // Pulso individual
-                this.time += this.pulsation;
-                // Decaimiento orgánico
-                this.radius -= 0.05;
+                
+                // Mayor tiempo de vida
+                this.radius -= 0.02;
+
+                // Actualizar partículas internas
+                this.particles.forEach(p => {
+                    p.update();
+                    // Mantener las partículas dentro de la nebulosa
+                    const dx = p.x - this.x; const dy = p.y - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist > this.radius) {
+                        p.x = this.x - dx / dist * this.radius;
+                        p.y = this.y - dy / dist * this.radius;
+                    }
+                });
+                this.particles = this.particles.filter(p => p.life > 0);
             }
             draw() {
-                const currentRadius = this.radius + Math.sin(this.time) * (this.radius / 10);
-                if (currentRadius <= 0) return;
-                
-                // Textura de Nebulosa con gradiente radial
-                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, currentRadius);
-                gradient.addColorStop(0, `rgba(${this.r}, ${this.g}, ${this.b}, 1)`);
-                gradient.addColorStop(1, `rgba(${this.r}, ${this.g}, ${this.b}, 0)`);
-                
-                ctx.beginPath();
-                ctx.fillStyle = gradient;
-                ctx.arc(this.x, this.y, currentRadius, 0, Math.PI * 2);
-                ctx.fill();
+                this.particles.forEach(p => p.draw());
             }
         }
 
-        let blobs = [];
+        let nebulas = [];
 
         function handleInteractions() {
-            for (let i = blobs.length - 1; i >= 0; i--) {
+            for (let i = nebulas.length - 1; i >= 0; i--) {
                 for (let j = i - 1; j >= 0; j--) {
-                    const b1 = blobs[i]; const b2 = blobs[j];
-                    const dx = b2.x - b1.x; const dy = b2.y - b1.y;
+                    const n1 = nebulas[i]; const n2 = nebulas[j];
+                    const dx = n2.x - n1.x; const dy = n2.y - n1.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
-                    if (distance < b1.radius/2 + b2.radius/2) { // Fusionar si se superponen significativamente
+                    if (distance < n1.radius/1.5 + n2.radius/1.5) {
                         // Crecimiento Armónico
-                        b1.radius += b2.radius * 0.2;
-                        // Mezcla de colores ponderada por tamaño
-                        b1.r = Math.floor((b1.r * b1.radius + b2.r * b2.radius) / (b1.radius + b2.radius));
-                        b1.g = Math.floor((b1.g * b1.radius + b2.g * b2.radius) / (b1.radius + b2.radius));
-                        b1.b = Math.floor((b1.b * b1.radius + b2.b * b2.radius) / (b1.radius + b2.radius));
+                        n1.radius += n2.radius * 0.3; // Más suave
+                        // Mezcla de colores
+                        n1.r = Math.floor((n1.r * n1.radius + n2.r * n2.radius) / (n1.radius + n2.radius));
+                        n1.g = Math.floor((n1.g * n1.radius + n2.g * n2.radius) / (n1.radius + n2.radius));
+                        n1.b = Math.floor((n1.b * n1.radius + n2.b * n2.radius) / (n1.radius + n2.radius));
                         
-                        blobs.splice(j, 1); // Eliminar la mancha más pequeña
+                        // Las partículas de la nebulosa pequeña migran a la grande
+                        n1.particles.push(...n2.particles);
+                        
+                        nebulas.splice(j, 1);
                         return;
                     }
                 }
@@ -118,43 +157,40 @@
         }
 
         function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.filter = 'blur(15px)';
+            ctx.fillStyle = 'rgba(0,0,0,0.2)'; // Dejar un rastro más sutil
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            for (let i = blobs.length - 1; i >= 0; i--) {
-                blobs[i].update();
-                if (blobs[i].radius < 1) {
-                    blobs.splice(i, 1); // Eliminar si es muy pequeña
+            for (let i = nebulas.length - 1; i >= 0; i--) {
+                nebulas[i].update();
+                if (nebulas[i].radius < 10 || nebulas[i].particles.length === 0) {
+                    nebulas.splice(i, 1);
                 } else {
-                    blobs[i].draw();
+                    nebulas[i].draw();
                 }
             }
             handleInteractions();
 
-            ctx.filter = 'none';
             requestAnimationFrame(animate);
         }
         
-        // --- LÓGICA DE INTERACCIÓN (ADITIVA) ---
+        // --- LÓGICA DE INTERACCIÓN ---
         document.querySelectorAll('.color-choice').forEach(button => {
             button.addEventListener('click', () => {
                 const colorType = button.dataset.color;
                 let r=0, g=0, b=0, type='';
-                if (colorType === 'red') { r=255; g=20; b=20; type='impulse'; }
-                if (colorType === 'blue') { r=20; g=20; b=255; type='reason'; }
-                if (colorType === 'yellow') { r=255; g=255; b=20; type='creation'; }
+                if (colorType === 'red') { r=255; g=50; b=50; type='impulse'; }
+                if (colorType === 'blue') { r=50; g=50; b=255; type='reason'; }
+                if (colorType === 'yellow') { r=255; g=255; b=50; type='creation'; }
                 
-                const newBlob = new Blob(Math.random()*canvas.width, Math.random()*canvas.height, 60, r,g,b, type);
-                blobs.push(newBlob);
+                const newNebula = new Nebula(Math.random()*canvas.width, Math.random()*canvas.height, 80, r,g,b, type);
+                nebulas.push(newNebula);
             });
         });
 
-        // --- LÓGICA DE INTERACCIÓN (SUSTRACTIVA) ---
         document.getElementById('absorb-button').addEventListener('click', () => {
-            if (blobs.length > 0) {
-                // Elimina la mancha más pequeña para "calmar" el sistema
-                blobs.sort((a, b) => a.radius - b.radius);
-                blobs.shift();
+            if (nebulas.length > 0) {
+                nebulas.sort((a, b) => a.radius - b.radius);
+                nebulas.shift();
 
                 const feedback = document.getElementById('feedback-text');
                 feedback.textContent = '*Absorción*';
