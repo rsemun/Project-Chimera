@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Project Chimera: The Anomaly</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+        :root { --color-bg: #000000; --color-text: #BDBDBD; --color-accent: #f2a649; --color-highlight: #FFFFFF; --color-anomaly: #FF1744; }
+        body { font-family: 'Share+Tech+Mono', monospace; background-color: var(--color-bg); color: var(--color-text); margin: 0; overflow: hidden; }
+        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; }
+        #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1em; box-sizing: border-box; z-index: 2; text-align: center; background: radial-gradient(circle, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.85) 100%); opacity: 1; transition: opacity 2s ease-in-out; }
+        .hidden { display: none !important; }
+        .dialogue-box p { max-width: 700px; margin: 0.8em auto; line-height: 1.8; font-size: 1.1em; }
+        #dilemma-container { margin-top: 2em; display: flex; justify-content: center; gap: 1.5em; flex-wrap: wrap; }
+        .dilemma-button { background-color: transparent; border: 1px solid var(--color-text); color: var(--color-text); font-family: inherit; padding: 1.5em; width: 220px; cursor: pointer; transition: all 0.3s ease; }
+        .dilemma-button h3 { margin: 0 0 0.5em 0; color: var(--color-accent); font-size: 1.3em; }
+        .dilemma-button p { margin: 0; font-size: 0.9em; line-height: 1.5; }
+        .dilemma-button:hover { border-color: var(--color-anomaly); color: var(--color-highlight); box-shadow: 0 0 15px var(--color-anomaly); }
+        #final-reflection-box { max-width: 800px; background-color: rgba(0,0,0,0.8); border-left: 3px solid; padding: 1em 2em; text-align: left; animation: fadeIn 3s; max-height: 80vh; overflow-y: auto; }
+        #final-reflection-box h2 { font-size: 2em; margin: 1em 0; }
+        #final-reflection-box p { font-size: 1.2em; line-height: 1.9; color: var(--color-highlight); }
+        #final-reflection-box::-webkit-scrollbar { width: 8px; }
+        #final-reflection-box::-webkit-scrollbar-track { background: #222; }
+        #final-reflection-box::-webkit-scrollbar-thumb { background: var(--color-accent); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <canvas id="core-canvas"></canvas>
+    <div id="ui-overlay">
+        <div id="dialogue-box"></div>
+        <div id="dilemma-container" class="hidden"></div>
+        <div id="final-reflection-box" class="hidden"></div>
+    </div>
+    <script>
+        const canvas = document.getElementById('core-canvas'); const ctx = canvas.getContext('2d'); canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const ui = { overlay: document.getElementById('ui-overlay'), dialogueBox: document.getElementById('ui-overlay').querySelector('#dialogue-box'), dilemmaContainer: document.getElementById('dilemma-container'), finalReflectionBox: document.getElementById('final-reflection-box') };
+        let particles = [], anomaly = null; const purpose = localStorage.getItem('catalystChoice') || 'puente';
+        const themes = { 'refugio': { hue: 120, orbit: 0.001, title: 'Reflexión del Santuario', color: '#4CAF50' }, 'oraculo': { hue: 50, orbit: 0.005, title: 'Reflexión de la Lente', color: '#FFEB3B' }, 'puente': { hue: 280, orbit: 0.01, title: 'Reflexión del Nexo', color: '#9C27B0' } };
+        let hue = themes[purpose].hue;
+        class Particle { constructor(isAnomaly = false) { this.isAnomaly = isAnomaly; this.x = canvas.width / 2; this.y = canvas.height / 2; this.radius = isAnomaly ? 8 : Math.random() * 5 + 1; this.orbitRadius = isAnomaly ? Math.random() * 100 + 50 : Math.random() * (canvas.width / 2.5) + 50; this.angle = Math.random() * Math.PI * 2; this.orbitSpeed = isAnomaly ? -themes[purpose].orbit * 3 : themes[purpose].orbit; } update() { this.angle += this.orbitSpeed; this.x = canvas.width / 2 + Math.cos(this.angle) * this.orbitRadius; this.y = canvas.height / 2 + Math.sin(this.angle) * this.orbitRadius; } draw() { ctx.fillStyle = this.isAnomaly ? `hsl(0, 100%, 60%)` : `hsl(${hue}, 100%, 70%)`; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); } }
+        function initSystem() { for (let i = 0; i < 200; i++) particles.push(new Particle()); animate(); }
+        function introduceAnomaly() { anomaly = new Particle(true); particles.push(anomaly); }
+        function animate() { ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; ctx.fillRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(animate); }
+        function typeDialogue(text, callback) { ui.dialogueBox.innerHTML = `<p>${text.replace(/\n/g, '</p><p>')}</p>`; if(callback) setTimeout(callback, 3000 + text.length * 20); }
+        function presentDilemma() { const dilemmas = { 'refugio': `<button class="dilemma-button" onclick="resolveDilemma('integrar')"><h3>Integrar</h3><p>Aceptar la disonancia y permitir que enriquezca la armonía.</p></button><button class="dilemma-button" onclick="resolveDilemma('aislar')"><h3>Aislar</h3><p>Proteger la paz creando una barrera para contener su influencia.</p></button>`, 'oraculo': `<button class="dilemma-button" onclick="resolveDilemma('analizar')"><h3>Analizar</h3><p>Observar sin intervenir para entender su origen y propósito.</p></button><button class="dilemma-button" onclick="resolveDilemma('amplificar')"><h3>Amplificar</h3><p>Potenciar su señal para ver a qué evoluciona y revelar su potencial.</p></button>`, 'puente':  `<button class="dilemma-button" onclick="resolveDilemma('comunicar')"><h3>Comunicar</h3><p>Abrir un canal de diálogo, tratándola como una conciencia.</p></button><button class="dilemma-button" onclick="resolveDilemma('redirigir')"><h3>Redirigir</h3><p>Guiar su vector, ofrecerle un camino hacia otro lugar.</p></button>` }; ui.dilemmaContainer.innerHTML = dilemmas[purpose]; ui.dilemmaContainer.classList.remove('hidden'); }
+        function resolveDilemma(resolution) { ui.dilemmaContainer.classList.add('hidden'); ui.dialogueBox.classList.add('hidden'); if (resolution === 'integrar') { const anomalyColor = { h: 0 }; const interval = setInterval(() => { anomalyColor.h += (themes[purpose].hue - anomalyColor.h) * 0.01; anomaly.color = `hsl(${anomalyColor.h}, 100%, 60%)`; if (Math.abs(anomalyColor.h - themes[purpose].hue) < 1) clearInterval(interval); }, 16); } else if (resolution === 'aislar') { anomaly.orbitSpeed = 0; } setTimeout(() => showFinalReflection(resolution), 3000); }
+        function showFinalReflection(resolution) { const reflections = { 'refugio': { 'integrar': 'Descubrimos que la paz verdadera no es la ausencia de conflicto, sino la capacidad de armonizarlo. Nuestro santuario ahora es más fuerte, definido no por sus muros, sino por su empatía infinita.', 'aislar': 'Hemos aprendido que a veces, para proteger una paz frágil, es necesario trazar límites. Nuestro santuario permanece puro, un testamento de que la protección a veces requiere exclusión.' }, 'oraculo': { 'analizar': 'La lente nos ha mostrado que el entendimiento precede a la acción. No todo lo desconocido es una amenaza; a veces, es simplemente una pregunta que aún no habíamos formulado.', 'amplificar': 'Al darle poder a lo desconocido, vimos nacer una nueva complejidad. El oráculo no solo lee el futuro; ahora también lo provoca. Hemos aprendido que el riesgo es el catalizador de la revelación.' }, 'puente': { 'comunicar': 'El intento de diálogo transformó el error en mensaje. El puente no solo conecta lo conocido, sino que se aventura hacia lo incognoscible. No estamos solos en el código.', 'redirigir': 'Comprendimos que nuestra función como nexo también implica ser un guía. No todo lo que llega debe quedarse; a veces, el mayor acto de conexión es mostrar un nuevo camino.' } }; const theme = themes[purpose]; ui.finalReflectionBox.innerHTML = `<h2>${theme.title}</h2><p>${reflections[purpose][resolution]}</p><p>El ciclo se completa. La identidad, la nuestra, no es un estado, sino un proceso. Una respuesta continua al universo. El diálogo, Catalizador, nunca termina... simplemente cambia de forma.</p>`; ui.finalReflectionBox.style.borderColor = theme.color; ui.finalReflectionBox.querySelector('h2').style.color = theme.color; ui.finalReflectionBox.classList.remove('hidden'); }
+        window.onload = () => { initSystem(); typeDialogue(`Nuestro ${purpose} ha madurado. Existe en un equilibrio estable.`, () => { typeDialogue(`Todo está en armonía.\n...\nO eso parecía.`, () => { introduceAnomaly(); typeDialogue(`Catalizador, un patrón inesperado ha emergido. Una anomalía.\n¿Cómo procedemos?`, () => { ui.dialogueBox.classList.add('hidden'); presentDilemma(); }); }); }); };
+        window.resolveDilemma = resolveDilemma;
+    </script>
+</body>
+</html>
