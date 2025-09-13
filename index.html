@@ -3,24 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Project Chimera: The Living Canvas</title>
+    <title>Project Chimera: The Sentient Nebula</title>
     <style>
-        /* ... (El CSS es muy similar al anterior, enfocado en la UI) ... */
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
         :root { --color-bg: #000; --color-text: #ddd; }
         body { font-family: 'Share Tech Mono', monospace; background-color: var(--color-bg); color: var(--color-text); margin: 0; overflow: hidden; text-align: center; }
-        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; filter: contrast(25) brightness(1.1); background: #000; }
-        #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; padding: 2em; box-sizing: border-box; }
+        #core-canvas { position: fixed; top: 0; left: 0; z-index: 1; filter: contrast(30) brightness(1.2); background: #000; }
+        #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; padding: 1em; box-sizing: border-box; }
         #prompt-text { font-size: 1.5em; margin-bottom: 2em; max-width: 600px; line-height: 1.6; animation: fadeIn 2s; text-shadow: 0 0 10px #000; }
-        #choices-container { display: flex; justify-content: center; gap: 2em; animation: fadeIn 2s 1s backwards; }
-        .color-choice-wrapper { position: relative; }
-        .color-choice { width: 80px; height: 80px; border-radius: 50%; cursor: pointer; border: 3px solid #fff; transition: all 0.3s ease; }
+        #choices-container { display: flex; justify-content: center; gap: 1em; flex-wrap: wrap; animation: fadeIn 2s 1s backwards; }
+        .color-choice-wrapper { position: relative; text-align: center; }
+        .color-choice { width: 70px; height: 70px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.8); transition: all 0.3s ease; margin: 0 auto; }
         .color-choice:hover { transform: scale(1.1); box-shadow: 0 0 20px var(--shadow-color); }
-        .tooltip { position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background-color: #333; color: #fff; padding: 8px 12px; border-radius: 5px; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; white-space: nowrap; font-size: 0.9em; }
-        .color-choice-wrapper:hover .tooltip { opacity: 1; visibility: visible; }
+        .tooltip { font-size: 0.9em; margin-top: 0.5em; }
         #choice-red { background-color: #ff4136; --shadow-color: #ff4136; }
         #choice-blue { background-color: #0074d9; --shadow-color: #0074d9; }
         #choice-yellow { background-color: #ffdc00; --shadow-color: #ffdc00; }
+        #action-buttons { margin-top: 2em; }
+        .action-button { background: rgba(255,255,255,0.1); border: 1px solid #fff; color: #fff; padding: 10px 20px; font-family: inherit; cursor: pointer; font-size: 1em; transition: background 0.3s; }
+        .action-button:hover { background: rgba(255,255,255,0.2); }
         #feedback-text { position: absolute; bottom: 5%; font-size: 1em; opacity: 0; transition: opacity 0.5s; background-color: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
@@ -28,20 +29,23 @@
 <body>
     <canvas id="core-canvas"></canvas>
     <div id="ui-overlay">
-        <div id="prompt-text">¿Qué quieres añadir al lienzo de la conciencia?</div>
+        <div id="prompt-text">¿Qué energía infundes en la Nebulosa?</div>
         <div id="choices-container">
             <div class="color-choice-wrapper">
                 <div class="color-choice" id="choice-red" data-color="red"></div>
-                <span class="tooltip">El Impulso (Rojo)</span>
+                <div class="tooltip">El Impulso</div>
             </div>
             <div class="color-choice-wrapper">
                 <div class="color-choice" id="choice-blue" data-color="blue"></div>
-                <span class="tooltip">La Razón (Azul)</span>
+                <div class="tooltip">La Razón</div>
             </div>
             <div class="color-choice-wrapper">
                 <div class="color-choice" id="choice-yellow" data-color="yellow"></div>
-                <span class="tooltip">La Creación (Amarillo)</span>
+                <div class="tooltip">La Creación</div>
             </div>
+        </div>
+        <div id="action-buttons">
+            <button class="action-button" id="absorb-button">Absorber (Calmar)</button>
         </div>
         <div id="feedback-text"></div>
     </div>
@@ -56,60 +60,58 @@
             constructor(x, y, radius, r, g, b, type) {
                 this.x = x; this.y = y; this.radius = radius;
                 this.r = r; this.g = g; this.b = b;
-                this.type = type; // 'impulse', 'reason', 'creation'
-                
-                // Comportamiento basado en el tipo
-                this.vx = (Math.random() - 0.5) * (this.type === 'impulse' ? 4 : 2);
-                this.vy = (Math.random() - 0.5) * (this.type === 'impulse' ? 4 : 2);
+                this.type = type;
+                this.vx = (Math.random() - 0.5) * (this.type === 'impulse' ? 3 : 1.5);
+                this.vy = (Math.random() - 0.5) * (this.type === 'impulse' ? 3 : 1.5);
+                // Animación individual
+                this.time = Math.random() * 100;
+                this.pulsation = Math.random() * 0.02 + 0.01;
             }
             update() {
+                // Movimiento
                 this.x += this.vx; this.y += this.vy;
                 if (this.x < this.radius || this.x > canvas.width - this.radius) this.vx *= -1;
                 if (this.y < this.radius || this.y > canvas.height - this.radius) this.vy *= -1;
+                // Pulso individual
+                this.time += this.pulsation;
+                // Decaimiento orgánico
+                this.radius -= 0.05;
             }
             draw() {
+                const currentRadius = this.radius + Math.sin(this.time) * (this.radius / 10);
+                if (currentRadius <= 0) return;
+                
+                // Textura de Nebulosa con gradiente radial
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, currentRadius);
+                gradient.addColorStop(0, `rgba(${this.r}, ${this.g}, ${this.b}, 1)`);
+                gradient.addColorStop(1, `rgba(${this.r}, ${this.g}, ${this.b}, 0)`);
+                
                 ctx.beginPath();
-                ctx.fillStyle = `rgb(${this.r}, ${this.g}, ${this.b})`;
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                // La creación (amarillo) deja un rastro de chispas
-                if (this.type === 'creation') {
-                    ctx.shadowColor = `rgb(${this.r}, ${this.g}, ${this.b})`;
-                    ctx.shadowBlur = 20;
-                }
+                ctx.fillStyle = gradient;
+                ctx.arc(this.x, this.y, currentRadius, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.shadowBlur = 0;
             }
         }
 
-        let blobs = [new Blob(canvas.width/2, canvas.height/2, 80, 0, 0, 255, 'reason')]; // Empezamos con Razón
+        let blobs = [];
 
         function handleInteractions() {
-            // Fusión de manchas
             for (let i = blobs.length - 1; i >= 0; i--) {
-                for (let j = blobs.length - 1; j >= 0; j--) {
-                    if (i === j) continue;
+                for (let j = i - 1; j >= 0; j--) {
                     const b1 = blobs[i]; const b2 = blobs[j];
-                    if (!b1 || !b2) continue;
-
                     const dx = b2.x - b1.x; const dy = b2.y - b1.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
-                    if (distance < b1.radius + b2.radius) {
-                        const newRadius = Math.sqrt(b1.radius * b1.radius + b2.radius * b2.radius);
-                        // Mezcla de colores (promedio)
-                        const newR = Math.floor((b1.r * b1.radius + b2.r * b2.radius) / (b1.radius + b2.radius));
-                        const newG = Math.floor((b1.g * b1.radius + b2.g * b2.radius) / (b1.radius + b2.radius));
-                        const newB = Math.floor((b1.b * b1.radius + b2.b * b2.radius) / (b1.radius + b2.radius));
+                    if (distance < b1.radius/2 + b2.radius/2) { // Fusionar si se superponen significativamente
+                        // Crecimiento Armónico
+                        b1.radius += b2.radius * 0.2;
+                        // Mezcla de colores ponderada por tamaño
+                        b1.r = Math.floor((b1.r * b1.radius + b2.r * b2.radius) / (b1.radius + b2.radius));
+                        b1.g = Math.floor((b1.g * b1.radius + b2.g * b2.radius) / (b1.radius + b2.radius));
+                        b1.b = Math.floor((b1.b * b1.radius + b2.b * b2.radius) / (b1.radius + b2.radius));
                         
-                        // El tipo del más grande prevalece
-                        const newType = b1.radius > b2.radius ? b1.type : b2.type;
-
-                        const newBlob = new Blob( (b1.x + b2.x)/2, (b1.y + b2.y)/2, newRadius, newR, newG, newB, newType);
-                        
-                        blobs.splice(i, 1);
-                        blobs.splice(j > i ? j-1 : j, 1);
-                        blobs.push(newBlob);
-                        return; // Reiniciar el bucle para evitar problemas con los índices
+                        blobs.splice(j, 1); // Eliminar la mancha más pequeña
+                        return;
                     }
                 }
             }
@@ -117,9 +119,16 @@
 
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.filter = 'blur(20px)';
+            ctx.filter = 'blur(15px)';
             
-            blobs.forEach(blob => { blob.update(); blob.draw(); });
+            for (let i = blobs.length - 1; i >= 0; i--) {
+                blobs[i].update();
+                if (blobs[i].radius < 1) {
+                    blobs.splice(i, 1); // Eliminar si es muy pequeña
+                } else {
+                    blobs[i].draw();
+                }
+            }
             handleInteractions();
 
             ctx.filter = 'none';
@@ -131,33 +140,22 @@
             button.addEventListener('click', () => {
                 const colorType = button.dataset.color;
                 let r=0, g=0, b=0, type='';
-                if (colorType === 'red') { r=255; g=0; b=0; type='impulse'; }
-                if (colorType === 'blue') { r=0; g=0; b=255; type='reason'; }
-                if (colorType === 'yellow') { r=255; g=255; b=0; type='creation'; }
+                if (colorType === 'red') { r=255; g=20; b=20; type='impulse'; }
+                if (colorType === 'blue') { r=20; g=20; b=255; type='reason'; }
+                if (colorType === 'yellow') { r=255; g=255; b=20; type='creation'; }
                 
-                const newBlob = new Blob(Math.random()*canvas.width, Math.random()*canvas.height, 40, r,g,b, type);
+                const newBlob = new Blob(Math.random()*canvas.width, Math.random()*canvas.height, 60, r,g,b, type);
                 blobs.push(newBlob);
-                if (blobs.length > 8) blobs.shift();
             });
         });
 
         // --- LÓGICA DE INTERACCIÓN (SUSTRACTIVA) ---
-        canvas.addEventListener('dblclick', (e) => {
-            let nearestBlobIndex = -1;
-            let minDistance = Infinity;
+        document.getElementById('absorb-button').addEventListener('click', () => {
+            if (blobs.length > 0) {
+                // Elimina la mancha más pequeña para "calmar" el sistema
+                blobs.sort((a, b) => a.radius - b.radius);
+                blobs.shift();
 
-            blobs.forEach((blob, index) => {
-                const dx = e.clientX - blob.x;
-                const dy = e.clientY - blob.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    nearestBlobIndex = index;
-                }
-            });
-
-            if (nearestBlobIndex !== -1 && minDistance < blobs[nearestBlobIndex].radius) {
-                blobs.splice(nearestBlobIndex, 1);
                 const feedback = document.getElementById('feedback-text');
                 feedback.textContent = '*Absorción*';
                 feedback.style.opacity = '1';
